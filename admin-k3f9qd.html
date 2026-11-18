@@ -93,7 +93,26 @@
 
   <!-- 后台 -->
   <div class="panel" id="content" hidden>
-    <h1>新建游戏卡片</h1>
+    <h1 id="page-title">新建游戏卡片</h1>
+
+    <div class="box">
+      <div class="tabs" id="mode-tabs" style="grid-template-columns:repeat(2,1fr)">
+        <button class="tab active" data-mode="add">➕ 新增游戏</button>
+        <button class="tab" data-mode="edit">✏️ 更新已有游戏</button>
+      </div>
+    </div>
+
+    <div class="box" id="edit-box" hidden>
+      <h2><span class="step">↻</span>载入要更新的游戏</h2>
+      <div class="toolbar" style="margin-top:0">
+        <button class="btn slim" id="load-list" type="button">从网站读取游戏列表</button>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>选择游戏</label>
+        <select id="game-select"><option value="">（先点上面的按钮读取）</option></select>
+      </div>
+      <p class="hint" id="edit-state"></p>
+    </div>
 
     <!-- ⓪ 连接 GitHub（发布用） -->
     <div class="box" id="gh-box">
@@ -268,8 +287,9 @@
       }
 
       /* ---------------- 下载源 ---------------- */
-      function addSource(plat) {
+      function addSource(plat, url0, code0, note0) {
         plat = plat || currentPlat;
+        url0 = url0 || ""; code0 = code0 || ""; note0 = note0 || "";
         var p = PLATS[plat];
         var list = document.getElementById("sources");
         var wrap = document.createElement("div");
@@ -285,10 +305,10 @@
                 return '<option value="' + k + '"' + (k === plat ? ' selected' : '') + '>' + PLATS[k].name + '</option>';
               }).join("") +
             '</select></div>' +
-            '<div class="field"><label>提取码（没有可不填）</label><input class="s-code" placeholder="xjrm" /></div>' +
+            '<div class="field"><label>提取码（没有可不填）</label><input class="s-code" placeholder="xjrm" value="' + esc(code0) + '" /></div>' +
           '</div>' +
-          '<div class="field"><label>分享链接 *</label><input class="s-url" placeholder="https://..." /></div>' +
-          '<div class="field"><label>备注（可不填，自动带默认说明）</label><input class="s-note" placeholder="' + esc(p.note) + '" /></div>';
+          '<div class="field"><label>分享链接 *</label><input class="s-url" placeholder="https://..." value="' + esc(url0) + '" /></div>' +
+          '<div class="field"><label>备注（可不填，自动带默认说明）</label><input class="s-note" placeholder="' + esc(p.note) + '" value="' + esc(note0) + '" /></div>';
         list.appendChild(wrap);
 
         wrap.querySelector(".src-remove").addEventListener("click", function () {
@@ -454,16 +474,24 @@
         if (!r.ok) throw new Error("读取 games.html 失败（" + r.status + "）");
         var j = await r.json();
         var content = b64decodeUtf8(j.content);
-        var idx = content.lastIndexOf("</article>");
-        if (idx < 0) throw new Error("页面结构异常，找不到卡片位置");
-        var updated = content.slice(0, idx + 10) + "\n\n" + html + "\n" + content.slice(idx + 10);
+        var updated;
+        if (mode === "edit") {
+          var cards = splitCards(content);
+          if (editingIndex < 0 || editingIndex >= cards.length) throw new Error("请先选择要更新的游戏");
+          var c = cards[editingIndex];
+          updated = content.slice(0, c.start) + html + content.slice(c.end);
+        } else {
+          var idx = content.lastIndexOf("</article>");
+          if (idx < 0) throw new Error("页面结构异常，找不到卡片位置");
+          updated = content.slice(0, idx + 10) + "\n\n" + html + "\n" + content.slice(idx + 10);
+        }
 
         state.textContent = "提交中…";
         var put = await fetch(api, {
           method: "PUT",
           headers: Object.assign({ "Content-Type": "application/json" }, ghHeaders(token)),
           body: JSON.stringify({
-            message: "admin: 新增游戏卡片",
+            message: mode === "edit" ? "admin: 更新游戏卡片" : "admin: 新增游戏卡片",
             content: b64encodeUtf8(updated),
             sha: j.sha,
             branch: BRANCH
@@ -474,6 +502,66 @@
           throw new Error("提交失败：" + (err.message || put.status));
         }
         return true;
+      }
+
+      /* ---------- 更新已有游戏 ---------- */
+      var mode = "add";
+      var loadedContent = "";
+      var loadedCards = [];
+      var editingIndex = -1;
+
+      function splitCards(content) {
+        var out = [], i = 0;
+        while (true) {
+          var sIdx = content.indexOf('<article class="card', i);
+          if (sIdx < 0) break;
+          var eIdx = content.indexOf("</article>", sIdx);
+          if (eIdx < 0) break;
+          out.push({ start: sIdx, end: eIdx + 10, html: content.slice(sIdx, eIdx + 10) });
+          i = eIdx + 10;
+        }
+        return out;
+      }
+
+      async function fetchGamesFile() {
+        var token = ghToken();
+        if (!token) throw new Error("还没连接 GitHub，先在第 0 步填 Token");
+        var api = "https://api.github.com/repos/" + REPO + "/contents/" + FILE + "?ref=" + BRANCH;
+        var r = await fetch(api, { headers: ghHeaders(token), cache: "no-store" });
+        if (!r.ok) throw new Error("读取失败（" + r.status + "）");
+        var j = await r.json();
+        return { content: b64decodeUtf8(j.content), sha: j.sha };
+      }
+
+      function parseCard(html) {
+        function pick(re) { var m = html.match(re); return m ? m[1].trim() : ""; }
+        var title = pick(/class="card-title">([^<]*)</);
+        var ver = pick(/class="badge ghost">([^<]*)</);
+        var desc = pick(/class="card-desc">([\s\S]*?)<\/p>/).replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
+        var tagsHtml = pick(/class="tags">([\s\S]*?)<\/div>/);
+        var tags = (tagsHtml.match(/>([^<>]+)</g) || []).map(function (t) { return t.slice(1, -1).trim(); }).filter(Boolean);
+        var sources = [];
+        var re = /class="source-name">([^<]*)<\/span>[\s\S]*?href="([^"]*)"[\s\S]*?class="source-note">([\s\S]*?)<\/p>/g;
+        var m;
+        while ((m = re.exec(html))) {
+          var note = m[3].replace(/<[^>]+>/g, "").replace(/\n{2,}/g, "\n").trim();
+          var codeMatch = note.match(/提取码：([A-Za-z0-9]+)/);
+          sources.push({
+            plat: m[1].indexOf("UC") >= 0 ? "UC网盘" : (m[1].indexOf("蓝奏") >= 0 ? "蓝奏云" : (m[1].indexOf("GitHub") >= 0 ? "GitHub" : "移动云盘")),
+            name: m[1], url: m[2], note: note, code: codeMatch ? codeMatch[1] : ""
+          });
+        }
+        return { title: title, ver: ver, desc: desc, tags: tags, sources: sources };
+      }
+
+      function fillForm(card) {
+        document.getElementById("g-name").value = card.title || "";
+        document.getElementById("g-ver").value = card.ver || "";
+        document.getElementById("g-desc").value = card.desc || "";
+        document.getElementById("g-tags").value = (card.tags || []).join(",");
+        document.getElementById("sources").innerHTML = "";
+        card.sources.forEach(function (s) { addSource(s.plat, s.url, s.code, s.note); });
+        if (!card.sources.length) addSource();
       }
 
       async function waitDeploy() {
@@ -499,6 +587,46 @@
 
       function bindButtons() {
         document.getElementById("add-src").addEventListener("click", function () { addSource(); });
+
+        document.getElementById("mode-tabs").addEventListener("click", function (e) {
+          var btn = e.target.closest(".tab");
+          if (!btn) return;
+          document.querySelectorAll("#mode-tabs .tab").forEach(function (t) { t.classList.remove("active"); });
+          btn.classList.add("active");
+          mode = btn.dataset.mode;
+          document.getElementById("edit-box").hidden = mode !== "edit";
+          document.getElementById("page-title").textContent = mode === "edit" ? "更新游戏卡片" : "新建游戏卡片";
+          document.getElementById("publish").textContent = mode === "edit" ? "💾 更新并发布" : "🚀 发布到网站";
+          if (mode === "add") editingIndex = -1;
+        });
+
+        document.getElementById("load-list").addEventListener("click", async function () {
+          var st = document.getElementById("edit-state");
+          st.textContent = "读取中…";
+          try {
+            var f = await fetchGamesFile();
+            loadedContent = f.content;
+            loadedCards = splitCards(f.content);
+            var sel = document.getElementById("game-select");
+            sel.innerHTML = loadedCards.map(function (c, i) {
+              var t = (c.html.match(/class="card-title">([^<]*)</) || [])[1] || ("卡片 " + (i + 1));
+              return '<option value="' + i + '">' + t + "</option>";
+            }).join("") || '<option value="">（没有找到游戏）</option>';
+            st.textContent = "共读取到 " + loadedCards.length + " 个游戏，选一个后会自动填入表单。";
+          } catch (err) {
+            st.textContent = "❌ " + err.message;
+          }
+        });
+
+        document.getElementById("game-select").addEventListener("change", function () {
+          var i = parseInt(this.value, 10);
+          if (isNaN(i) || !loadedCards[i]) return;
+          editingIndex = i;
+          var card = parseCard(loadedCards[i].html);
+          fillForm(card);
+          document.getElementById("edit-state").textContent =
+            "已载入「" + card.title + "」，修改下面第 2、3 步后点「更新并发布」。";
+        });
 
         document.getElementById("apk-file").addEventListener("change", async function (e) {
           const info = document.getElementById("apk-info");
