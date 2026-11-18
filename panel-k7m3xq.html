@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>数据面板</title>
+  <link rel="stylesheet" href="assets/style.css?v=12" />
+  <style>
+    body { background: var(--bg); }
+    .panel { width: min(720px, 100% - 32px); margin: 48px auto; }
+    .panel h1 { font-size: 22px; margin: 0 0 6px; }
+    .panel .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+    .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .box {
+      background: var(--bg-soft); border: 1px solid var(--line); border-radius: 14px;
+      padding: 18px; box-shadow: var(--shadow);
+    }
+    .box .num { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .box .lbl { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+           padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .row:last-child { border-bottom: 0; }
+    .muted { color: var(--muted); font-size: 12.5px; }
+  </style>
+</head>
+<body>
+
+  <div class="panel" id="gate">
+    <h1>需要密码</h1>
+    <p class="sub">这是私人数据面板，请输入访问密码。</p>
+    <div class="box">
+      <div class="row" style="grid-template-columns:1fr">
+        <input id="pw" type="password" placeholder="密码" autocomplete="current-password"
+               style="width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:15px;outline:none" />
+      </div>
+      <div class="row" style="grid-template-columns:1fr">
+        <button id="go" type="button" class="btn"
+                style="width:100%;padding:11px;border:none;cursor:pointer;font-size:15px">进入</button>
+      </div>
+      <p class="muted" id="err" style="color:#d9534f;margin:8px 0 0"></p>
+    </div>
+    <p class="muted" style="margin-top:14px">提示：密码错误会提示；忘记密码需要改页面里的校验值。</p>
+  </div>
+
+  <div class="panel" id="content" hidden>
+    <h1>站点数据面板</h1>
+    <p class="sub">只有你能看到这个页面（未在任何地方公开链接）。</p>
+
+    <div class="grid2">
+      <div class="box">
+        <div class="num" id="busuanzi_value_site_pv">—</div>
+        <div class="lbl">总访问量（PV）</div>
+      </div>
+      <div class="box">
+        <div class="num" id="busuanzi_value_site_uv">—</div>
+        <div class="lbl">访客数（UV）</div>
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top:18px">数据来源：不蒜子（访问量统计）。</p>
+  </div>
+
+  <script>
+    window.__loadStats = function () {
+      // 访问量
+      var sc = document.createElement("script");
+      sc.src = "https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js";
+      sc.async = true;
+      document.head.appendChild(sc);
+          });
+          if (hasN) document.getElementById("gh-normal").textContent = normal;
+          if (hasU) document.getElementById("gh-unlimited").textContent = unlim;
+          if (hasN || hasU) document.getElementById("gh-total").textContent = normal + unlim;
+        })
+        .catch(function () {});
+    };
+    document.addEventListener("DOMContentLoaded", function () {
+      if (!document.getElementById("content").hidden) window.__loadStats();
+    });
+  </script>
+
+  <script>
+    (function () {
+      var HASH = "01ba2b1649ba1bc9b5485d388cfee2f32a234cd0a6d61e5f9277d5ec705bb236";
+      var KEY = "vc_panel_ok";
+      var gate = document.getElementById("gate");
+      var content = document.getElementById("content");
+      var pw = document.getElementById("pw");
+      var err = document.getElementById("err");
+
+      function show() {
+        gate.hidden = true;
+        content.hidden = false;
+        if (window.__loadStats) window.__loadStats();
+        try { sessionStorage.setItem(KEY, "1"); } catch (e) {}
+      }
+
+      try { if (sessionStorage.getItem(KEY) === "1") { show(); return; } } catch (e) {}
+
+      async function sha256(str) {
+        var buf = new TextEncoder().encode(str);
+        var d = await crypto.subtle.digest("SHA-256", buf);
+        return Array.prototype.map.call(new Uint8Array(d), function (b) {
+          return b.toString(16).padStart(2, "0");
+        }).join("");
+      }
+
+      async function attempt() {
+        err.textContent = "";
+        var v = pw.value.trim();
+        if (!v) { err.textContent = "请输入密码"; return; }
+        try {
+          if (await sha256(v) === HASH) show();
+          else { err.textContent = "密码不对"; pw.value = ""; pw.focus(); }
+        } catch (e) {
+          err.textContent = "当前环境无法校验（需要 https），请换浏览器";
+        }
+      }
+
+      document.getElementById("go").addEventListener("click", attempt);
+      pw.addEventListener("keydown", function (e) { if (e.key === "Enter") attempt(); });
+      pw.focus();
+    })();
+  </script>
+</body>
+</html>

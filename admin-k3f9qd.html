@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>管理后台</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <link rel="stylesheet" href="assets/style.css?v=12" />
+  <style>
+    .panel { width: min(760px, 100% - 28px); margin: 34px auto 60px; }
+    .panel h1 { font-size: 21px; margin: 0 0 18px; }
+    .box {
+      background: var(--bg-soft); border: 1px solid var(--line); border-radius: 14px;
+      padding: 16px; box-shadow: var(--shadow); margin-bottom: 14px;
+    }
+    .box h2 { font-size: 15px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+    .box h2 .step {
+      background: var(--accent-soft); color: var(--accent); font-size: 12px;
+      width: 20px; height: 20px; border-radius: 6px; display: inline-flex;
+      align-items: center; justify-content: center; font-weight: 700;
+    }
+    .field { margin-bottom: 10px; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+    .field input, .field textarea, .field select {
+      width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line);
+      background: var(--bg); color: var(--text); font-size: 14px; font-family: inherit;
+      outline: none; box-sizing: border-box;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 600px) { .row2 { grid-template-columns: 1fr; } }
+
+    /* 平台选择 */
+    .tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    @media (min-width: 620px) { .tabs { grid-template-columns: repeat(4, 1fr); } }
+    .tab {
+      border: 1px solid var(--line); background: var(--bg); color: var(--text);
+      border-radius: 10px; padding: 12px 8px; cursor: pointer; font: inherit; font-size: 13px;
+      text-align: center; transition: .15s;
+    }
+    .tab small { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+    .tab:hover { border-color: var(--accent); }
+    .tab.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+    .tab.active small { color: var(--accent); }
+
+    .hint {
+      margin: 10px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.65;
+      border-left: 3px solid var(--accent); padding-left: 10px;
+    }
+    .hint a { color: var(--accent); }
+
+    /* 下载源行 */
+    .src {
+      border: 1px dashed var(--line); border-radius: 10px; padding: 12px; margin-bottom: 10px;
+      background: var(--bg);
+    }
+    .src-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .src-head strong { font-size: 13px; }
+    .src-remove {
+      background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12.5px;
+      text-decoration: underline;
+    }
+    .src-remove:hover { color: #d9534f; }
+
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .btn.slim { padding: 9px 14px; font-size: 13px; }
+    output#snippet {
+      display: block; white-space: pre-wrap; word-break: break-all;
+      background: var(--bg); border: 1px dashed var(--line); border-radius: 10px;
+      padding: 12px; font-size: 12px; line-height: 1.6; color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      max-height: 360px; overflow: auto; margin-top: 12px;
+    }
+    .err { color: #d9534f; font-size: 13px; margin-top: 8px; }
+    .muted { color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+    ol.tips { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; line-height: 1.8; }
+  </style>
+</head>
+<body>
+  <!-- 密码门 -->
+  <div class="panel" id="gate">
+    <h1>管理后台</h1>
+    <div class="box">
+      <div class="field">
+        <label>访问密码</label>
+        <input id="pw" type="password" placeholder="输入密码" autocomplete="current-password" />
+      </div>
+      <button id="go" type="button" class="btn" style="width:100%;padding:11px;border:0;cursor:pointer">进入</button>
+      <p class="err" id="err"></p>
+    </div>
+  </div>
+
+  <!-- 后台 -->
+  <div class="panel" id="content" hidden>
+    <h1>新建游戏卡片</h1>
+
+    <!-- ① 上传到哪里 -->
+    <div class="box">
+      <h2><span class="step">1</span>先选上传到哪</h2>
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-plat="移动云盘">中国移动云盘<small>推荐 · 不限速</small></button>
+        <button class="tab" data-plat="UC网盘">UC 网盘<small>需登录</small></button>
+        <button class="tab" data-plat="蓝奏云">蓝奏云<small>单文件 100MB</small></button>
+        <button class="tab" data-plat="GitHub">GitHub<small>免提取码</small></button>
+      </div>
+      <p class="hint" id="platHint"></p>
+    </div>
+
+    <!-- ② 游戏信息 -->
+    <div class="box">
+      <h2><span class="step">2</span>游戏信息</h2>
+      <div class="row2">
+        <div class="field">
+          <label>游戏名称 *</label>
+          <input id="g-name" placeholder="房东模拟器" />
+        </div>
+        <div class="field">
+          <label>版本号</label>
+          <input id="g-ver" placeholder="v2.8.44" />
+        </div>
+      </div>
+      <div class="field">
+        <label>简介</label>
+        <textarea id="g-desc" rows="2" placeholder="经营类单机游戏：装修房间、招租客、收房租。"></textarea>
+      </div>
+      <div class="field">
+        <label>标签（逗号分隔，可不填）</label>
+        <input id="g-tags" placeholder="Android,单机,模拟经营" />
+      </div>
+    </div>
+
+    <!-- ③ 下载源 -->
+    <div class="box">
+      <h2><span class="step">3</span>下载源（填一个就行）</h2>
+      <div id="sources"></div>
+      <div class="toolbar">
+        <button class="btn ghost slim" id="add-src" type="button">+ 再加一个下载源</button>
+      </div>
+    </div>
+
+    <!-- ④ 生成 -->
+    <div class="box">
+      <h2><span class="step">4</span>生成代码</h2>
+      <div class="toolbar" style="margin-top:0">
+        <button class="btn slim" id="gen" type="button">生成卡片代码</button>
+        <button class="btn ghost slim" id="copy" type="button">复制</button>
+        <a class="btn ghost slim" href="games.html" target="_blank" rel="noopener">看小游戏页 ↗</a>
+      </div>
+      <output id="snippet">填好上面 3 步，点「生成卡片代码」。</output>
+      <ol class="tips">
+        <li>复制生成的整段 <code>&lt;article class="card"&gt;…&lt;/article&gt;</code></li>
+        <li>打开 <code>games.html</code>，粘到 <code>&lt;div class="grid" id="grid"&gt;</code> 里已有卡片后面</li>
+        <li>存盘后执行 <code>npx surge ./ vc-files.surge.sh</code>（游戏数量会自动更新）</li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var HASH = "f75c9d5a6d85fe22600a7cbd3574d54054eb127e000df18c7873b84f2268be4a";
+      var KEY = "vc_admin_ok";
+      var gate = document.getElementById("gate");
+      var content = document.getElementById("content");
+
+      function show() {
+        gate.hidden = true; content.hidden = false;
+        try { sessionStorage.setItem(KEY, "1"); } catch (e) {}
+        try { init(); } catch (e) { console.error("init failed:", e); }
+      }
+
+      async function sha256(str) {
+        var d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+        return Array.prototype.map.call(new Uint8Array(d), function (b) {
+          return b.toString(16).padStart(2, "0");
+        }).join("");
+      }
+      document.getElementById("go").addEventListener("click", async function () {
+        var err = document.getElementById("err");
+        var v = document.getElementById("pw").value.trim();
+        err.textContent = "";
+        if (!v) { err.textContent = "请输入密码"; return; }
+        try {
+          if (await sha256(v) === HASH) show();
+          else { err.textContent = "密码不对"; document.getElementById("pw").value = ""; }
+        } catch (e) { err.textContent = "当前环境无法校验（需要 https）"; }
+      });
+      document.getElementById("pw").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") document.getElementById("go").click();
+      });
+
+      /* ---------------- 平台配置 ---------------- */
+      var PLATS = {
+        "移动云盘": {
+          name: "中国移动云盘", code: true,
+          link: "https://yun.139.com/",
+          note: "下载后是 ZIP，解压得到 .apk 再安装。移动用户免流量。",
+          hint: "先把 APK 压成 .zip 上传到 <a href=\"https://yun.139.com/\" target=\"_blank\" rel=\"noopener\">中国移动云盘</a>，创建分享后填链接 + 提取码。"
+        },
+        "UC网盘": {
+          name: "UC 网盘", code: false,
+          link: "https://drive.uc.cn/",
+          note: "浏览器打开后可能要登录 UC 账号并「保存到网盘」再下载。",
+          hint: "APK 直接上传到 <a href=\"https://drive.uc.cn/\" target=\"_blank\" rel=\"noopener\">UC 网盘</a>，分享后把链接填进来（一般不需要提取码）。"
+        },
+        "蓝奏云": {
+          name: "蓝奏云", code: true,
+          link: "https://www.ilanzou.com/",
+          note: "下载后是 ZIP，解压密码见说明；免费账号单文件约 100MB。",
+          hint: "蓝奏云禁止直接分享 APK，要先压成带密码的 .zip 再上传（<a href=\"https://www.ilanzou.com/\" target=\"_blank\" rel=\"noopener\">打开蓝奏云</a>）。"
+        },
+        "GitHub": {
+          name: "GitHub 直链", code: false,
+          link: "https://github.com/",
+          note: "直接下载 .apk，免登录、免提取码。",
+          hint: "在 GitHub 建一个 Release，把 APK 作为附件上传（单文件上限 2GB），右键复制下载直链。"
+        }
+      };
+      var currentPlat = "移动云盘";
+
+      function init() {
+        renderPlatHint();
+        if (!document.querySelector(".src")) addSource();
+        bindTabs();
+        bindButtons();
+      }
+
+      function bindTabs() {
+        document.getElementById("tabs").addEventListener("click", function (e) {
+          var btn = e.target.closest(".tab");
+          if (!btn) return;
+          document.querySelectorAll(".tab").forEach(function (t) { t.classList.remove("active"); });
+          btn.classList.add("active");
+          currentPlat = btn.dataset.plat;
+          renderPlatHint();
+        });
+      }
+
+      function renderPlatHint() {
+        var p = PLATS[currentPlat];
+        document.getElementById("platHint").innerHTML = p.hint;
+      }
+
+      function esc(s) {
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+
+      /* ---------------- 下载源 ---------------- */
+      function addSource(plat) {
+        plat = plat || currentPlat;
+        var p = PLATS[plat];
+        var list = document.getElementById("sources");
+        var wrap = document.createElement("div");
+        wrap.className = "src";
+        wrap.innerHTML =
+          '<div class="src-head">' +
+            '<strong>下载源 ' + (list.children.length + 1) + '</strong>' +
+            '<button class="src-remove" type="button">删除</button>' +
+          '</div>' +
+          '<div class="row2">' +
+            '<div class="field"><label>平台</label><select class="s-plat">' +
+              Object.keys(PLATS).map(function (k) {
+                return '<option value="' + k + '"' + (k === plat ? ' selected' : '') + '>' + PLATS[k].name + '</option>';
+              }).join("") +
+            '</select></div>' +
+            '<div class="field"><label>提取码（没有可不填）</label><input class="s-code" placeholder="xjrm" /></div>' +
+          '</div>' +
+          '<div class="field"><label>分享链接 *</label><input class="s-url" placeholder="https://..." /></div>' +
+          '<div class="field"><label>备注（可不填，自动带默认说明）</label><input class="s-note" placeholder="' + esc(p.note) + '" /></div>';
+        list.appendChild(wrap);
+
+        wrap.querySelector(".src-remove").addEventListener("click", function () {
+          wrap.remove();
+          renumber();
+        });
+        wrap.querySelector(".s-plat").addEventListener("change", function () {
+          var np = PLATS[this.value];
+          wrap.querySelector(".s-note").placeholder = np.note;
+        });
+        renumber();
+      }
+
+      function renumber() {
+        document.querySelectorAll(".src").forEach(function (el, i) {
+          el.querySelector(".src-head strong").textContent = "下载源 " + (i + 1);
+        });
+      }
+
+      function bindButtons() {
+        document.getElementById("add-src").addEventListener("click", function () { addSource(); });
+        document.getElementById("gen").addEventListener("click", generate);
+        document.getElementById("copy").addEventListener("click", async function () {
+          var btn = this;
+          try {
+            await navigator.clipboard.writeText(document.getElementById("snippet").textContent);
+            btn.textContent = "已复制 ✓";
+          } catch (e) { btn.textContent = "复制失败"; }
+          setTimeout(function () { btn.textContent = "复制"; }, 1500);
+        });
+      }
+
+      function val(id) { var el = document.getElementById(id); return el ? el.value.trim() : ""; }
+
+      function generate() {
+        var name = val("g-name");
+        var out = document.getElementById("snippet");
+        if (!name) { out.textContent = "请先填游戏名称。"; return; }
+
+        var ver = val("g-ver");
+        var desc = val("g-desc");
+        var tags = val("g-tags").split(/[,，]/).map(function (t) { return t.trim(); }).filter(Boolean);
+
+        var srcs = [];
+        document.querySelectorAll(".src").forEach(function (el) {
+          var plat = el.querySelector(".s-plat").value;
+          var p = PLATS[plat];
+          var url = el.querySelector(".s-url").value.trim();
+          var code = el.querySelector(".s-code").value.trim();
+          var note = el.querySelector(".s-note").value.trim() || p.note;
+          if (!url) return;
+          var lines = [];
+          if (code) lines.push("提取码：" + code);
+          if (note) lines.push(note);
+          srcs.push({ name: p.name, url: url, note: lines.join("\n") });
+        });
+        if (!srcs.length) { out.textContent = "至少要填一个下载源的链接。"; return; }
+
+        var srcHtml = srcs.map(function (s) {
+          return '\n              <div class="source">\n' +
+            '                <div class="source-head">\n' +
+            '                  <span class="source-name">' + esc(s.name) + '</span>\n' +
+            '                  <a class="btn small" href="' + esc(s.url) + '" target="_blank" rel="noopener">打开 ↗</a>\n' +
+            '                </div>\n' +
+            '                <p class="source-note">' + esc(s.note) + '</p>\n' +
+            '              </div>';
+        }).join("");
+
+        var html =
+'        <article class="card">\n' +
+'          <div class="card-top">\n' +
+'            <span class="badge">修改版</span>\n' +
+(ver ? '            <span class="badge ghost">' + esc(ver) + '</span>\n' : '') +
+'          </div>\n' +
+'          <h3 class="card-title">' + esc(name) + '</h3>\n' +
+'          <p class="card-desc">' + esc(desc) + '</p>\n' +
+'          <div class="tags">' + tags.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join("") + '</div>\n' +
+'\n' +
+'          <div class="card-foot">\n' +
+'            <div class="sources">' + srcHtml + '\n            </div>\n' +
+'          </div>\n' +
+'        </article>';
+
+        out.textContent = html;
+      }
+
+      // 已登录则直接进入（放在所有定义之后，避免初始化顺序问题）
+      try { if (sessionStorage.getItem(KEY) === "1") show(); } catch (e) {}
+    })();
+  </script>
+</body>
+</html>

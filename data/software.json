@@ -1,0 +1,105 @@
+{
+  "site": {
+    "title": "VC文件分享",
+    "subtitle": "这里放我自己整理、改制的文件，都是亲自用过、确认能用的。",
+    "author": "VC",
+    "footer": "本站为个人分享，软件版权归原作者所有。",
+    "contact": {
+      "email": "3531487909@qq.com",
+      "label": "联系我",
+      "captcha": {
+        "provider": "turnstile",
+        "siteKey": "0x4AAAAAAGEfrv3ALfsChNAQ",
+        "fallbackQuestion": "本站分享的游戏英文原名是什么？（提示：The ___）",
+        "fallbackAnswer": "the trail"
+      }
+    }
+  },
+  "categories": [
+    {
+      "id": "all",
+      "name": "全部"
+    },
+    {
+      "id": "translate",
+      "name": "汉化移植"
+    },
+    {
+      "id": "tool",
+      "name": "效率工具"
+    },
+    {
+      "id": "android",
+      "name": "安卓应用"
+    }
+  ],
+  "software": [
+    {
+      "name": "VC边境旅行精翻版 · 正常数值",
+      "category": "translate",
+      "desc": "《The Trail》（边境之旅）国际服 10223 简体中文精翻版，正常数值版本：词条全量中文化、官方信件、官方大区名、中文聊天表情。基于 10223 安装包重制。 下载走 UC 网盘：浏览器打开后可能需要登录 UC 账号并「保存到网盘」再下载；文件为 .apk，安装前请先看上方「安装前必读」。",
+      "tags": [
+        "Android",
+        "汉化",
+        "正常数值",
+        "v10223"
+      ],
+      "downloads": [
+        {
+          "label": "中国移动云盘",
+          "url": "https://yun.139.com/shareweb/#/w/i/2yA8Hou1xbspo",
+          "note": "提取码：5r81\n下载后是 ZIP 压缩包，解压密码：2026vc（若提示密码错误，改成大写 VC，即 2026VC）。\n移动云盘对移动用户免流量，其它运营商也能下。"
+        },
+        {
+          "label": "UC 网盘",
+          "url": "https://drive.uc.cn/s/2f15c94f86134?public=1",
+          "note": "浏览器打开后可能要登录 UC 账号并「保存到网盘」再下载，得到的是 .apk 文件。"
+        },
+        {
+          "label": "蓝奏云",
+          "url": "https://www.ilanzou.com/s/LjlyTTkTr",
+          "note": "下载下来是 ZIP 压缩包，用解压软件打开，密码 vc2026，解压出 .apk 安装包再安装。\n（不需要改后缀名；蓝奏云免费额度有限，若链接失效请换用 UC 网盘。）"
+        }
+      ]
+    },
+    {
+      "name": "VC边境旅行精翻版 · 无限金马蹄",
+      "category": "translate",
+      "desc": "同上版本，但保留原包的无限金马蹄作弊补丁（libil2cpp 两处 return 16），适合想直接体验内容的玩家。 下载走 UC 网盘：浏览器打开后可能需要登录 UC 账号并「保存到网盘」再下载；文件为 .apk，安装前请先看上方「安装前必读」。",
+      "tags": [
+        "Android",
+        "汉化",
+        "无限金马蹄",
+        "v10223"
+      ],
+      "downloads": [
+        {
+          "label": "中国移动云盘",
+          "url": "https://yun.139.com/shareweb/#/w/i/2yA8Hbt7k8Ac5",
+          "note": "提取码：b11b\n下载后是 ZIP 压缩包，解压密码：2026vc（若提示密码错误，改成大写 VC，即 2026VC）。\n移动云盘对移动用户免流量，其它运营商也能下。"
+        },
+        {
+          "label": "UC 网盘",
+          "url": "https://drive.uc.cn/s/1d6e35c1826c4?public=1",
+          "note": "浏览器打开后可能要登录 UC 账号并「保存到网盘」再下载，得到的是 .apk 文件。"
+        },
+        {
+          "label": "蓝奏云",
+          "url": "https://www.ilanzou.com/s/pBzyTTk3X",
+          "note": "下载下来是 ZIP 压缩包，用解压软件打开，密码 vc2026，解压出 .apk 安装包再安装。\n（不需要改后缀名；蓝奏云免费额度有限，若链接失效请换用 UC 网盘。）"
+        }
+      ]
+    }
+  ],
+  "sponsor": {
+    "title": "赞助支持",
+    "desc": "如果这里的内容帮到了你，可以扫码请我喝杯咖啡。纯自愿，不影响任何内容的获取。",
+    "methods": [
+      {
+        "name": "微信赞赏",
+        "image": "assets/sponsor/wechat.png",
+        "note": "微信扫一扫，金额随意"
+      }
+    ]
+  }
+}

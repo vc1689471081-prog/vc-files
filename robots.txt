@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /panel-k7m3xq.html
+Disallow: /admin-k3f9qd.html
+Sitemap: https://vc-files.surge.sh/sitemap.xml

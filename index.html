@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VC文件分享</title>
+  <meta name="description" content="VC文件分享：自己整理、改制的文件与软件，包含《The Trail》边境之旅精翻版。" />
+  <meta name="keywords" content="VC文件分享,边境之旅,The Trail,汉化版,中文版,安卓APK,10223" />
+  <meta name="robots" content="index,follow" />
+  <meta property="og:title" content="VC文件分享" />
+  <meta property="og:description" content="边境之旅 The Trail 10223 简体中文精翻版（正常数值 / 无限金马蹄），含安装说明与下载。" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://vc-files.surge.sh/" />
+  <link rel="stylesheet" href="assets/style.css?v=12" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧰</text></svg>" />
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <div class="hero-mark" aria-hidden="true">🧰</div>
+      <h1 id="site-title">VC文件分享</h1>
+      <p id="site-subtitle" class="lede">这里是我日常在用、并且愿意推荐的软件。</p>
+      <nav class="hero-nav">
+        <a href="#software">文件</a>
+        <a href="games.html">小游戏</a>
+        <a href="#notice">注意事项</a>
+        <a href="#sponsor">赞助</a>
+        <a href="#disclaimer">免责声明</a>
+        <a href="#contact">联系</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="notice" class="section">
+      <div class="section-head">
+        <h2>安装前必读</h2>
+      </div>
+      <div class="callout">
+        <ul class="notice-list">
+          <li><strong>非官方版本</strong>：这里的文件均由个人制作、修改与翻译，<u>不是官方发行版</u>，与游戏开发商、发行商及任何官方渠道无关。</li>
+          <li><strong>网络环境需自备</strong>：游戏为国际服，需要你自己准备加速器 / 网络工具；本站<u>不提供、不推荐、不销售</u>任何此类服务。</li>
+          <li><strong>与原版无法共存</strong>：这是《The Trail》v10223 的简体中文汉化版，签名与原版不同。<u>安装前必须卸载原版</u>；两者不能共存，混装会导致官方版本失效、无法登录。</li>
+          <li><strong>存档会丢</strong>：卸载原版会清除本地存档。需要保留进度的话，安装前先把下面两个文件备份出来：
+            <div class="save-box">
+              <div class="save-path">
+                <code id="save-path-text">/storage/emulated/0/Android/Data/com.kongregate.mobile.thetrail.google/files/</code>
+              </div>
+              <div class="save-actions">
+                <button class="btn ghost small" id="copy-path" type="button">复制路径</button>
+              </div>
+              <ul class="save-files">
+                <li><code>trail.sav</code><span>主存档</span></li>
+                <li><code>trail.confirmed</code><span>存档校验文件</span></li>
+              </ul>
+              <p class="save-tip" id="save-tip">两个文件要一起备份、一起放回，缺一个可能读不出存档。建议先复制到 <code>Download/存档备份/</code>。</p>
+              <p class="save-tip muted">说明：网页无法直接跳到文件管理的指定目录。Android 11 及以上系统限制访问 <code>Android/data</code>，如需进入该目录，需要先通过 <strong>ADB 授权</strong>，或在开发者选项里开启 <strong>无线调试</strong>，再用支持的工具（如 MT 管理器、Shizuku 授权的文件管理器）访问。请先「复制路径」再粘贴到对应工具的地址栏。</p>
+            </div>
+          </li>
+          <li><strong>在线游戏风险</strong>：修改版可能违反游戏服务条款，存在封号、数据异常、进度丢失的风险，请自行判断是否使用。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="software" class="section">
+      <div class="section-head">
+        <h2>在用的软件</h2>
+        <span id="count" class="count"></span>
+      </div>
+
+      <div class="toolbar">
+        <div id="filters" class="chips" role="tablist" aria-label="分类筛选"></div>
+        <label class="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 1 0 3.7 10.7l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/></svg>
+          <input id="q" type="search" placeholder="搜索软件名或标签…" autocomplete="off" />
+        </label>
+      </div>
+
+      <div id="grid" class="grid" aria-live="polite"></div>
+      <p id="empty" class="empty" hidden>没有匹配的条目。</p>
+    </section>
+
+
+    <section id="sponsor" class="section">
+      <div class="section-head">
+        <h2 id="sponsor-title">赞助支持</h2>
+      </div>
+      <p id="sponsor-desc" class="lede small"></p>
+      <div id="sponsor-list" class="sponsor-grid"></div>
+    </section>
+
+    <section id="disclaimer" class="section">
+      <div class="section-head">
+        <h2>免责声明</h2>
+      </div>
+      <div class="callout">
+        <p>本站为个人非盈利分享站点，仅用于学习、研究与交流，不提供任何形式的商业服务。</p>
+        <ul class="notice-list">
+          <li>站内所有软件、游戏及其素材的<strong>版权归原作者及发行商所有</strong>，本站不主张任何权利。</li>
+          <li>所提供的汉化 / 修改版本均<strong>基于正版客户端制作</strong>，仅供已购买正版的玩家个人使用；请支持正版，通过官方渠道获取游戏。</li>
+          <li>使用修改版<strong>可能违反用户协议</strong>，由此产生的封号、数据丢失、设备异常等后果由使用者自行承担，本站不承担任何责任。</li>
+          <li>本站<strong>不存储、不代理、不传播</strong>任何破解、盗版或违法内容；第三方网盘链接由对应平台提供，其可用性与安全性本站无法保证。</li>
+          <li>若本站内容无意中侵犯了您的权益，请联系站长，核实后将<strong>立即删除</strong>。</li>
+        </ul>
+        <p class="muted small">继续下载或使用本站文件，即表示你已阅读并同意以上说明。</p>
+      </div>
+    </section>
+
+
+    <section id="contact" class="section">
+      <div class="section-head">
+        <h2>联系方式</h2>
+      </div>
+      <div class="contact-card">
+        <div class="contact-info">
+          <span class="contact-label">有安装问题、失效链接或想使用反馈，可以发邮件给我</span>
+
+          <div id="contact-locked">
+            <div class="contact-masked">••••••••••@••••.com</div>
+            <button class="btn ghost" id="reveal-btn" type="button">验证后查看邮箱</button>
+          </div>
+
+          <div id="contact-unlocked" hidden>
+            <a class="contact-mail" id="contact-mail" href="#">—</a>
+            <div class="contact-actions">
+              <button class="btn ghost" id="copy-mail" type="button">复制邮箱</button>
+              <a class="btn" id="mail-to" href="#">写邮件 ↗</a>
+            </div>
+          </div>
+
+          <div id="captcha-area" hidden>
+            <div id="turnstile-slot"></div>
+            <div id="local-challenge" hidden>
+              <p class="challenge-q" id="challenge-q"></p>
+              <input id="challenge-a" type="text" placeholder="输入答案" autocomplete="off" />
+              <button class="btn" id="challenge-go" type="button">确认</button>
+              <p class="challenge-tip" id="challenge-tip"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <p id="footer-text"></p>
+      <p class="muted">© <span id="year"></span> · 由 GitHub Pages 驱动</p>
+    </div>
+  </footer>
+
+  <template id="card-tpl">
+    <article class="card">
+      <div class="card-top">
+        <h3 class="card-title"></h3>
+        <span class="card-cat"></span>
+      </div>
+      <p class="card-desc"></p>
+      <div class="card-foot">
+        <div class="tags"></div>
+        <a class="btn" target="_blank" rel="noopener">访问 ↗</a>
+      </div>
+    </article>
+  </template>
+
+
+  <!-- 首次访问协议弹窗 -->
+  <div id="gate" class="gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+    <div class="gate-card">
+      <h2 id="gate-title">使用前请阅读</h2>
+      <div class="gate-body" id="gate-body">
+        <p><strong>1. 非官方版本</strong>：本站文件由个人制作、修改与翻译，不是官方发行版，与游戏开发商、发行商及任何官方渠道无关。</p>
+        <p><strong>2. 网络需自备</strong>：游戏为国际服，需要你自己准备加速器或网络工具；本站不提供、不推荐、不销售任何此类服务。</p>
+        <p><strong>3. 与原版不能共存</strong>：这是《The Trail》v10223 的简体中文汉化版，签名与原版不同。<u>安装前必须卸载原版</u>，混装会导致官方版本失效、无法登录。</p>
+        <p><strong>4. 存档会丢</strong>：卸载原版会清除本地存档。请先备份 <code>Android/data/com.kongregate.mobile.thetrail.google/files/</code> 下的 <code>trail.sav</code> 与 <code>trail.confirmed</code>（两个文件要一起备份、一起放回）。Android 11 以上进入该目录需要 ADB 授权或开启无线调试。</p>
+        <p><strong>5. 在线游戏风险</strong>：修改版可能违反游戏服务条款，存在封号、数据异常、进度丢失风险，请自行判断是否使用。</p>
+        <p><strong>6. 免责声明</strong>：站内所有软件、游戏及素材版权归原作者及发行商所有；汉化/修改版仅限已购买正版的玩家个人使用，请支持正版。使用修改版产生的一切后果由使用者自行承担，本站不承担任何责任；本站不存储、不代理、不传播破解或盗版内容，第三方网盘链接的可用性与安全性无法保证。如有侵权，联系即删。</p>
+        <p class="gate-tail">继续下载或使用本站文件，即表示你已阅读并同意以上全部内容。</p>
+      </div>
+      <div class="gate-foot">
+        <button class="btn gate-btn" id="gate-agree" type="button" disabled>请先滑到底部</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/app.js?v=11"></script>
+</body>
+</html>
