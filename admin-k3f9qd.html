@@ -95,6 +95,20 @@
   <div class="panel" id="content" hidden>
     <h1>新建游戏卡片</h1>
 
+    <!-- ⓪ 连接 GitHub（发布用） -->
+    <div class="box" id="gh-box">
+      <h2><span class="step">0</span>连接 GitHub（发布用，只需设置一次）</h2>
+      <div class="field">
+        <label>GitHub Token（repo + workflow 权限）</label>
+        <input id="gh-token" type="password" placeholder="ghp_..." autocomplete="off" />
+      </div>
+      <div class="toolbar" style="margin-top:8px">
+        <button class="btn slim" id="gh-save" type="button">保存并测试</button>
+        <button class="btn ghost slim" id="gh-clear" type="button">清除</button>
+      </div>
+      <p class="hint" id="gh-state">未连接。Token 只保存在你这台设备的浏览器里，不会上传到网站。</p>
+    </div>
+
     <!-- ① 上传到哪里 -->
     <div class="box">
       <h2><span class="step">1</span>先选上传到哪</h2>
@@ -141,13 +155,15 @@
 
     <!-- ④ 生成 -->
     <div class="box">
-      <h2><span class="step">4</span>生成代码</h2>
+      <h2><span class="step">4</span>发布</h2>
       <div class="toolbar" style="margin-top:0">
-        <button class="btn slim" id="gen" type="button">生成卡片代码</button>
-        <button class="btn ghost slim" id="copy" type="button">复制</button>
+        <button class="btn slim" id="publish" type="button">🚀 发布到网站</button>
+        <button class="btn ghost slim" id="gen" type="button">只生成代码</button>
+        <button class="btn ghost slim" id="copy" type="button">复制代码</button>
         <a class="btn ghost slim" href="games.html" target="_blank" rel="noopener">看小游戏页 ↗</a>
       </div>
-      <output id="snippet">填好上面 3 步，点「生成卡片代码」。</output>
+      <p class="hint" id="pub-state"></p>
+      <output id="snippet">填好上面 3 步，点「发布到网站」。</output>
       <ol class="tips">
         <li>复制生成的整段 <code>&lt;article class="card"&gt;…&lt;/article&gt;</code></li>
         <li>打开 <code>games.html</code>，粘到 <code>&lt;div class="grid" id="grid"&gt;</code> 里已有卡片后面</li>
@@ -287,8 +303,131 @@
         });
       }
 
+      var REPO = "vc1689471081-prog/vc-files";
+      var BRANCH = "main";
+      var FILE = "games.html";
+      var TKEY = "vc_gh_token";
+
+      function ghToken() {
+        try { return localStorage.getItem(TKEY) || ""; } catch (e) { return ""; }
+      }
+
+      function setGhState(text, ok) {
+        var el = document.getElementById("gh-state");
+        el.textContent = text;
+        el.style.color = ok ? "var(--accent)" : "";
+      }
+
+      function b64encodeUtf8(str) {
+        return btoa(unescape(encodeURIComponent(str)));
+      }
+      function b64decodeUtf8(b64) {
+        return decodeURIComponent(escape(atob(b64.replace(/\n/g, ""))));
+      }
+
+      function ghHeaders(token) {
+        return {
+          "Authorization": "Bearer " + token,
+          "Accept": "application/vnd.github+json"
+        };
+      }
+
+      async function testToken(token) {
+        var r = await fetch("https://api.github.com/repos/" + REPO, { headers: ghHeaders(token) });
+        if (!r.ok) throw new Error("Token 无效或没有该仓库权限（" + r.status + "）");
+        var j = await r.json();
+        return j.full_name;
+      }
+
+      async function publishCard(html) {
+        var token = ghToken();
+        if (!token) throw new Error("还没连接 GitHub，先在第 0 步填 Token");
+        var api = "https://api.github.com/repos/" + REPO + "/contents/" + FILE;
+        var state = document.getElementById("pub-state");
+        state.textContent = "读取当前页面…";
+        var r = await fetch(api + "?ref=" + BRANCH, { headers: ghHeaders(token), cache: "no-store" });
+        if (!r.ok) throw new Error("读取 games.html 失败（" + r.status + "）");
+        var j = await r.json();
+        var content = b64decodeUtf8(j.content);
+        var idx = content.lastIndexOf("</article>");
+        if (idx < 0) throw new Error("页面结构异常，找不到卡片位置");
+        var updated = content.slice(0, idx + 10) + "\n\n" + html + "\n" + content.slice(idx + 10);
+
+        state.textContent = "提交中…";
+        var put = await fetch(api, {
+          method: "PUT",
+          headers: Object.assign({ "Content-Type": "application/json" }, ghHeaders(token)),
+          body: JSON.stringify({
+            message: "admin: 新增游戏卡片",
+            content: b64encodeUtf8(updated),
+            sha: j.sha,
+            branch: BRANCH
+          })
+        });
+        if (!put.ok) {
+          var err = await put.json().catch(function () { return {}; });
+          throw new Error("提交失败：" + (err.message || put.status));
+        }
+        return true;
+      }
+
+      async function waitDeploy() {
+        var token = ghToken();
+        var api = "https://api.github.com/repos/" + REPO + "/actions/runs?per_page=1";
+        for (var i = 0; i < 24; i++) {
+          await new Promise(function (r) { setTimeout(r, 5000); });
+          try {
+            var r = await fetch(api, { headers: ghHeaders(token), cache: "no-store" });
+            if (!r.ok) continue;
+            var j = await r.json();
+            var run = (j.workflow_runs || [])[0];
+            if (!run) continue;
+            var st = run.status + "/" + (run.conclusion || "-");
+            document.getElementById("pub-state").textContent = "构建中：" + st;
+            if (run.status === "completed") {
+              return run.conclusion === "success";
+            }
+          } catch (e) {}
+        }
+        return null;
+      }
+
       function bindButtons() {
         document.getElementById("add-src").addEventListener("click", function () { addSource(); });
+
+        document.getElementById("gh-save").addEventListener("click", async function () {
+          var t = document.getElementById("gh-token").value.trim();
+          if (!t) { setGhState("请先填 Token"); return; }
+          setGhState("验证中…");
+          try {
+            var name = await testToken(t);
+            localStorage.setItem(TKEY, t);
+            document.getElementById("gh-token").value = "";
+            setGhState("已连接：" + name + " ✅");
+          } catch (e) { setGhState(e.message); }
+        });
+
+        document.getElementById("gh-clear").addEventListener("click", function () {
+          try { localStorage.removeItem(TKEY); } catch (e) {}
+          setGhState("已清除 Token");
+        });
+
+        document.getElementById("publish").addEventListener("click", async function () {
+          var state = document.getElementById("pub-state");
+          try {
+            var html = buildCard();
+            if (!html) return;
+            await publishCard(html);
+            state.textContent = "已提交，等待自动构建…";
+            var ok = await waitDeploy();
+            if (ok === true) state.textContent = "✅ 发布成功！约 1 分钟内全网生效：vc-files.surge.sh/games.html";
+            else if (ok === false) state.textContent = "⚠️ 已提交，但构建失败，请去 GitHub Actions 查看";
+            else state.textContent = "已提交，构建较慢，稍后刷新小游戏页确认";
+          } catch (e) {
+            state.textContent = "❌ " + e.message;
+          }
+        });
+
         document.getElementById("gen").addEventListener("click", generate);
         document.getElementById("copy").addEventListener("click", async function () {
           var btn = this;
@@ -302,10 +441,10 @@
 
       function val(id) { var el = document.getElementById(id); return el ? el.value.trim() : ""; }
 
-      function generate() {
+      function buildCard() {
         var name = val("g-name");
         var out = document.getElementById("snippet");
-        if (!name) { out.textContent = "请先填游戏名称。"; return; }
+        if (!name) { out.textContent = "请先填游戏名称。"; return null; }
 
         var ver = val("g-ver");
         var desc = val("g-desc");
@@ -324,7 +463,7 @@
           if (note) lines.push(note);
           srcs.push({ name: p.name, url: url, note: lines.join("\n") });
         });
-        if (!srcs.length) { out.textContent = "至少要填一个下载源的链接。"; return; }
+        if (!srcs.length) { out.textContent = "至少要填一个下载源的链接。"; return null; }
 
         var srcHtml = srcs.map(function (s) {
           return '\n              <div class="source">\n' +
@@ -352,7 +491,10 @@
 '        </article>';
 
         out.textContent = html;
+        return html;
       }
+
+      function generate() { buildCard(); }
 
       // 已登录则直接进入（放在所有定义之后，避免初始化顺序问题）
       try { if (sessionStorage.getItem(KEY) === "1") show(); } catch (e) {}
