@@ -124,6 +124,11 @@
     <!-- ② 游戏信息 -->
     <div class="box">
       <h2><span class="step">2</span>游戏信息</h2>
+      <div class="field">
+        <label>选择本地 APK（自动填名称和版本，文件只在本机读取，不会上传）</label>
+        <input type="file" id="apk-file" accept=".apk,application/vnd.android.package-archive" />
+        <p class="hint" id="apk-info" style="margin-top:8px"></p>
+      </div>
       <div class="row2">
         <div class="field">
           <label>游戏名称 *</label>
@@ -303,6 +308,106 @@
         });
       }
 
+
+      /* ---------- 本地 APK 解析（只读文件，不上传） ---------- */
+      async function inflateRaw(bytes) {
+        if (typeof DecompressionStream === "undefined") throw new Error("当前浏览器不支持解压，请手动填写");
+        const ds = new DecompressionStream("deflate-raw");
+        const stream = new Blob([bytes]).stream().pipeThrough(ds);
+        const buf = await new Response(stream).arrayBuffer();
+        return new Uint8Array(buf);
+      }
+      function u16(b, o) { return b[o] | (b[o + 1] << 8); }
+      function u32(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0; }
+
+      async function zipExtract(data, name) {
+        let eocd = -1;
+        for (let i = data.length - 22; i >= Math.max(0, data.length - 66000); i--) {
+          if (u32(data, i) === 0x06054b50) { eocd = i; break; }
+        }
+        if (eocd < 0) throw new Error("不是有效的 APK（ZIP）");
+        const cdCount = u16(data, eocd + 10);
+        let p = u32(data, eocd + 16);
+        for (let i = 0; i < cdCount; i++) {
+          if (u32(data, p) !== 0x02014b50) break;
+          const method = u16(data, p + 10);
+          const compSize = u32(data, p + 20);
+          const nameLen = u16(data, p + 28);
+          const extraLen = u16(data, p + 30);
+          const cmtLen = u16(data, p + 32);
+          const localOff = u32(data, p + 42);
+          const fname = new TextDecoder().decode(data.subarray(p + 46, p + 46 + nameLen));
+          if (fname === name) {
+            const lNameLen = u16(data, localOff + 26);
+            const lExtraLen = u16(data, localOff + 28);
+            const start = localOff + 30 + lNameLen + lExtraLen;
+            const raw = data.subarray(start, start + compSize);
+            if (method === 0) return raw;
+            if (method === 8) return await inflateRaw(raw);
+            throw new Error("不支持的压缩方式");
+          }
+          p += 46 + nameLen + extraLen + cmtLen;
+        }
+        throw new Error("APK 里找不到 AndroidManifest.xml");
+      }
+
+      function parseAxml(buf) {
+        let off = 8, strings = [], resIds = [];
+        const res = { package: "", versionName: "", versionCode: "" };
+        while (off < buf.length) {
+          const type = u16(buf, off), headerSize = u16(buf, off + 2), size = u32(buf, off + 4);
+          if (size < 8) break;
+          if (type === 0x0001) {
+            const count = u32(buf, off + 8), flags = u32(buf, off + 16), sStart = u32(buf, off + 20);
+            const utf8 = (flags & 0x100) !== 0;
+            for (let i = 0; i < count; i++) {
+              const so = u32(buf, off + 28 + i * 4), p = off + sStart + so;
+              if (utf8) {
+                let len = buf[p], q = p + 1;
+                if (len & 0x80) { len = ((len & 0x7f) << 8) | buf[q]; q++; }
+                let l2 = buf[q]; q++;
+                if (l2 & 0x80) { l2 = ((l2 & 0x7f) << 8) | buf[q]; q++; }
+                strings.push(new TextDecoder().decode(buf.subarray(q, q + len)));
+              } else {
+                let len = u16(buf, p), q = p + 2;
+                if (len & 0x8000) { len = ((len & 0x7fff) << 16) | u16(buf, q); q += 2; }
+                let str = "";
+                for (let k = 0; k < len; k++) str += String.fromCharCode(u16(buf, q + k * 2));
+                strings.push(str);
+              }
+            }
+          } else if (type === 0x0180) {
+            const n = (size - headerSize) / 4;
+            for (let i = 0; i < n; i++) resIds.push(u32(buf, off + headerSize + i * 4));
+          } else if (type === 0x0102) {
+            const ext = off + headerSize;
+            const nameIdx = u32(buf, ext + 4);
+            const attrStart = u16(buf, ext + 8), attrSize = u16(buf, ext + 10), attrCount = u16(buf, ext + 12);
+            if ((strings[nameIdx] || "") === "manifest") {
+              for (let i = 0; i < attrCount; i++) {
+                const a = ext + attrStart + i * attrSize;
+                const ns = u32(buf, a), nameI = u32(buf, a + 4), rawVal = u32(buf, a + 8);
+                const dataType = buf[a + 15], dataVal = u32(buf, a + 16);
+                const aname = strings[nameI] || "";
+                let value = rawVal !== 0xffffffff ? (strings[rawVal] || "") : String(dataVal);
+                if (aname === "package") res.package = value;
+                else if (ns !== 0xffffffff && (resIds[nameI] === 0x0101021b || aname === "versionName")) res.versionName = value;
+                else if (ns !== 0xffffffff && (resIds[nameI] === 0x0101021c || aname === "versionCode")) res.versionCode = value;
+                else if (dataType === 0x03 && resIds[nameI] === 0x0101021b) res.versionName = value;
+              }
+            }
+          }
+          off += size;
+        }
+        return res;
+      }
+
+      async function apkInfo(file) {
+        const data = new Uint8Array(await file.arrayBuffer());
+        const mf = await zipExtract(data, "AndroidManifest.xml");
+        return parseAxml(mf);
+      }
+
       var REPO = "vc1689471081-prog/vc-files";
       var BRANCH = "main";
       var FILE = "games.html";
@@ -394,6 +499,27 @@
 
       function bindButtons() {
         document.getElementById("add-src").addEventListener("click", function () { addSource(); });
+
+        document.getElementById("apk-file").addEventListener("change", async function (e) {
+          const info = document.getElementById("apk-info");
+          const f = e.target.files && e.target.files[0];
+          if (!f) return;
+          info.textContent = "读取中…";
+          try {
+            const m = await apkInfo(f);
+            const sizeMB = (f.size / 1048576).toFixed(1);
+            info.innerHTML = "✅ <b>" + f.name + "</b>（" + sizeMB + " MB）<br>包名：" + (m.package || "—") +
+              "<br>版本：" + (m.versionName || "—");
+            if (m.versionName) document.getElementById("g-ver").value = m.versionName;
+            if (!document.getElementById("g-name").value) {
+              let base = f.name.replace(/\.apk$/i, "");
+              if (m.versionName) base = base.replace(new RegExp("[_\\- ]?" + m.versionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ".*$"), "");
+              document.getElementById("g-name").value = base.trim() || f.name.replace(/\.apk$/i, "");
+            }
+          } catch (err) {
+            info.textContent = "⚠️ 解析失败：" + err.message + "（可以手动填）";
+          }
+        });
 
         document.getElementById("gh-save").addEventListener("click", async function () {
           var t = document.getElementById("gh-token").value.trim();
